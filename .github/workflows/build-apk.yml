@@ -1,33 +1,34 @@
 name: Build Sarath & Malu Super Market APK
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
+          gradle-version: '8.7'
 
       - name: Create Android project
         shell: bash
         run: |
+          rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/sarathmalu/supermarket
           mkdir -p app/src/main/res/values
 
@@ -39,7 +40,6 @@ jobs:
                   gradlePluginPortal()
               }
           }
-
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories {
@@ -47,7 +47,6 @@ jobs:
                   mavenCentral()
               }
           }
-
           rootProject.name = "SarathMaluSuperMarket"
           include(":app")
           EOF
@@ -61,29 +60,21 @@ jobs:
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
-          android.nonTransitiveRClass=true
           EOF
 
           cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
           }
-
           android {
               namespace 'com.sarathmalu.supermarket'
               compileSdk 35
-
               defaultConfig {
                   applicationId 'com.sarathmalu.supermarket'
                   minSdk 23
                   targetSdk 35
                   versionCode 1
                   versionName '1.0'
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
               }
           }
           EOF
@@ -98,139 +89,266 @@ jobs:
           <resources>
               <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#167C80</item>
-                  <item name="android:navigationBarColor">#F5F7FA</item>
-                  <item name="android:statusBarColor">#0B2535</item>
                   <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#0B1220</item>
+                  <item name="android:navigationBarColor">#0B1220</item>
+                  <item name="android:colorAccent">#19C37D</item>
               </style>
           </resources>
           EOF
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
               <application
-                  android:allowBackup="true"
-                  android:label="@string/app_name"
                   android:theme="@style/AppTheme"
+                  android:label="@string/app_name"
+                  android:allowBackup="true"
                   android:supportsRtl="true">
-
                   <activity
                       android:name=".MainActivity"
                       android:screenOrientation="portrait"
                       android:exported="true">
-
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
-
                   </activity>
-
               </application>
-
           </manifest>
           EOF
 
           cat > app/src/main/java/com/sarathmalu/supermarket/MainActivity.java <<'EOF'
           package com.sarathmalu.supermarket;
 
-          import android.app.AlertDialog;
+          import android.app.Activity;
+          import android.os.Bundle;
           import android.graphics.Color;
           import android.graphics.Typeface;
           import android.graphics.drawable.GradientDrawable;
-          import android.os.Bundle;
-          import android.text.InputType;
           import android.view.Gravity;
           import android.view.View;
-          import android.view.ViewGroup;
           import android.widget.Button;
           import android.widget.EditText;
           import android.widget.HorizontalScrollView;
           import android.widget.LinearLayout;
           import android.widget.ScrollView;
+          import android.widget.Space;
           import android.widget.TextView;
-          import android.widget.Toast;
-
-        
-          import android.app.Activity;
-
-          import java.util.LinkedHashMap;
           import java.util.Locale;
-          import java.util.Map;
 
           public class MainActivity extends Activity {
+              final int BG=Color.rgb(246,248,251), NAVY=Color.rgb(11,18,32);
+              final int GREEN=Color.rgb(25,195,125), TEXT=Color.rgb(30,41,59);
+              final int MUTED=Color.rgb(100,116,139), WHITE=Color.WHITE;
 
-              private final LinkedHashMap<String, Integer> cart = new LinkedHashMap<>();
+              LinearLayout cart;
+              TextView subtotalText,gstText,totalText,itemCountText;
+              EditText discountInput;
+              double subtotal=0;
+              int itemCount=0;
 
-              private final String[] productNames = {
-                      "Rice 5kg",
-                      "Milk 1L",
-                      "Bread",
-                      "Sugar 1kg",
-                      "Cooking Oil 1L",
-                      "Biscuits",
-                      "Tea Powder",
-                      "Eggs 12pcs"
-              };
+              String[] products={"Rice 5kg","Milk 1L","Bread","Sugar 1kg","Cooking Oil 1L","Biscuits"};
+              double[] prices={320,55,45,52,145,30};
 
-              private final double[] productPrices = {
-                      320,
-                      55,
-                      45,
-                      52,
-                      145,
-                      30,
-                      180,
-                      90
-              };
+              int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
 
-              private final String[] productIcons = {
-                      "🍚",
-                      "🥛",
-                      "🍞",
-                      "🧂",
-                      "🫗",
-                      "🍪",
-                      "🍵",
-                      "🥚"
-              };
-
-              private LinearLayout cartContainer;
-              private TextView itemCountText;
-              private TextView subtotalText;
-              private TextView discountText;
-              private TextView gstText;
-              private TextView totalText;
-              private EditText discountInput;
-
-              private final int BG = Color.rgb(246, 248, 251);
-              private final int NAVY = Color.rgb(11, 37, 53);
-              private final int TEAL = Color.rgb(22, 124, 128);
-              private final int DARK = Color.rgb(31, 41, 55);
-              private final int MUTED = Color.rgb(107, 114, 128);
-              private final int WHITE = Color.WHITE;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  getWindow().setStatusBarColor(NAVY);
-                  getWindow().setNavigationBarColor(BG);
-
-                  buildScreen();
+              GradientDrawable bg(int color,float radius){
+                  GradientDrawable g=new GradientDrawable();
+                  g.setColor(color); g.setCornerRadius(dp(radius)); return g;
               }
 
-              private int dp(int value) {
-                  return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+              TextView text(String s,float size,int color,boolean bold){
+                  TextView t=new TextView(this);
+                  t.setText(s); t.setTextSize(size); t.setTextColor(color);
+                  t.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));
+                  return t;
               }
 
-              private TextView text(String value, float size, int color, boolean bold) {
-                  TextView t = new TextView(this);
-                  t.setText(value);
-                  t.setTextSize(size);
-                  t.setTextColor(color);
+              TextView label(String s){
+                  TextView t=text(s,12,MUTED,true); t.setLetterSpacing(.04f); return t;
+              }
 
-                  if (bold) {
-                      t.setTypeface(Typeface
+              @Override public void onCreate(Bundle b){
+                  super.onCreate(b); buildUI();
+              }
+
+              void buildUI(){
+                  LinearLayout root=new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG);
+                  root.addView(header(),new LinearLayout.LayoutParams(-1,dp(132)));
+
+                  ScrollView scroll=new ScrollView(this);
+                  LinearLayout body=new LinearLayout(this);
+                  body.setOrientation(LinearLayout.VERTICAL);
+                  body.setPadding(dp(18),dp(16),dp(18),dp(90));
+
+                  body.addView(label("QUICK SALE")); body.addView(space(8));
+                  body.addView(productStrip()); body.addView(space(22));
+
+                  LinearLayout titleRow=new LinearLayout(this);
+                  titleRow.setGravity(Gravity.CENTER_VERTICAL);
+                  titleRow.addView(text("Current Bill",22,TEXT,true),
+                          new LinearLayout.LayoutParams(0,dp(40),1));
+                  itemCountText=text("0 ITEMS",11,MUTED,true);
+                  titleRow.addView(itemCountText);
+                  body.addView(titleRow);
+
+                  cart=new LinearLayout(this); cart.setOrientation(LinearLayout.VERTICAL);
+                  body.addView(cart,new LinearLayout.LayoutParams(-1,-2));
+                  body.addView(space(18)); body.addView(summaryCard());
+
+                  scroll.addView(body);
+                  root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+
+                  LinearLayout bottom=new LinearLayout(this);
+                  bottom.setPadding(dp(16),dp(10),dp(16),dp(10));
+                  bottom.setBackgroundColor(WHITE);
+                  Button clear=button("CLEAR BILL",NAVY);
+                  clear.setOnClickListener(v->{cart.removeAllViews();subtotal=0;itemCount=0;updateTotals();});
+                  bottom.addView(clear,new LinearLayout.LayoutParams(-1,dp(52)));
+                  root.addView(bottom,new LinearLayout.LayoutParams(-1,dp(72)));
+                  setContentView(root);
+              }
+
+              View header(){
+                  LinearLayout h=new LinearLayout(this);
+                  h.setOrientation(LinearLayout.VERTICAL);
+                  h.setPadding(dp(20),dp(18),dp(20),dp(14));
+                  h.setGravity(Gravity.BOTTOM); h.setBackground(bg(NAVY,0));
+
+                  LinearLayout top=new LinearLayout(this);
+                  top.setGravity(Gravity.CENTER_VERTICAL);
+                  top.addView(text("SARATH & MALU",22,WHITE,true),
+                          new LinearLayout.LayoutParams(0,dp(38),1));
+                  top.addView(text("●  POS",12,GREEN,true));
+                  h.addView(top);
+                  TextView sub=text("SUPER MARKET  •  100% OFFLINE",11,
+                          Color.rgb(177,190,210),true);
+                  sub.setPadding(0,dp(3),0,0); h.addView(sub);
+                  return h;
+              }
+
+              View productStrip(){
+                  HorizontalScrollView hs=new HorizontalScrollView(this);
+                  hs.setHorizontalScrollBarEnabled(false);
+                  LinearLayout row=new LinearLayout(this);
+                  row.setPadding(0,0,dp(6),0);
+
+                  for(int i=0;i<products.length;i++){
+                      final int p=i;
+                      Button b=button(products[i]+"\n₹"+
+                              String.format(Locale.US,"%.0f",prices[i]),WHITE);
+                      b.setTextSize(12); b.setTextColor(TEXT); b.setGravity(Gravity.CENTER);
+                      b.setAllCaps(false); b.setBackground(bg(WHITE,18)); b.setElevation(dp(2));
+                      b.setOnClickListener(v->addItem(p));
+                      LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(132),dp(72));
+                      lp.setMargins(0,0,dp(10),0); row.addView(b,lp);
+                  }
+                  hs.addView(row); return hs;
+              }
+
+              void addItem(int p){
+                  LinearLayout row=new LinearLayout(this);
+                  row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(14),dp(8),dp(8),dp(8));
+                  row.setBackground(bg(WHITE,16)); row.setElevation(dp(1));
+
+                  LinearLayout info=new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL);
+                  info.addView(text(products[p],15,TEXT,true));
+                  info.addView(text("₹"+String.format(Locale.US,"%.2f",prices[p]),12,MUTED,false));
+                  row.addView(info,new LinearLayout.LayoutParams(0,dp(62),1));
+
+                  Button minus=smallButton("−"),qty=smallButton("1"),plus=smallButton("+");
+                  qty.setTextColor(GREEN);
+                  row.addView(minus,new LinearLayout.LayoutParams(dp(42),dp(42)));
+                  LinearLayout.LayoutParams qlp=new LinearLayout.LayoutParams(dp(42),dp(42));
+                  qlp.setMargins(dp(6),0,dp(6),0); row.addView(qty,qlp);
+                  row.addView(plus,new LinearLayout.LayoutParams(dp(42),dp(42)));
+
+                  final int[] q={1};
+                  minus.setOnClickListener(v->{if(q[0]>1){q[0]--;qty.setText(""+q[0]);recalc();}});
+                  plus.setOnClickListener(v->{q[0]++;qty.setText(""+q[0]);recalc();});
+
+                  row.setTag(new double[]{prices[p]});
+                  LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(78));
+                  rp.setMargins(0,0,0,dp(8)); cart.addView(row,rp);
+                  itemCount++; subtotal+=prices[p]; updateTotals();
+              }
+
+              void recalc(){
+                  subtotal=0;
+                  for(int i=0;i<cart.getChildCount();i++){
+                      View v=cart.getChildAt(i);
+                      if(v instanceof LinearLayout){
+                          LinearLayout r=(LinearLayout)v;
+                          TextView q=(TextView)r.getChildAt(2);
+                          int qty=Integer.parseInt(q.getText().toString());
+                          double price=((double[])r.getTag())[0];
+                          subtotal+=price*qty;
+                      }
+                  }
+                  updateTotals();
+              }
+
+              View summaryCard(){
+                  LinearLayout card=new LinearLayout(this);
+                  card.setOrientation(LinearLayout.VERTICAL); card.setPadding(dp(18),dp(18),dp(18),dp(18));
+                  card.setBackground(bg(WHITE,20)); card.setElevation(dp(2));
+                  card.addView(label("PAYMENT SUMMARY"));
+
+                  discountInput=new EditText(this);
+                  discountInput.setHint("Discount %"); discountInput.setTextSize(14);
+                  discountInput.setSingleLine(true);
+                  card.addView(discountInput,new LinearLayout.LayoutParams(-1,dp(52)));
+
+                  subtotalText=text("Subtotal   ₹0.00",14,MUTED,false);
+                  gstText=text("GST 5%   ₹0.00",14,MUTED,false);
+                  totalText=text("TOTAL   ₹0.00",22,TEXT,true);
+                  card.addView(subtotalText); card.addView(gstText); card.addView(space(8)); card.addView(totalText);
+                  discountInput.setOnFocusChangeListener((v,f)->updateTotals());
+                  return card;
+              }
+
+              void updateTotals(){
+                  double discount=0;
+                  try{discount=Double.parseDouble(discountInput==null?"0":discountInput.getText().toString());}
+                  catch(Exception ignored){}
+                  double after=subtotal-(subtotal*discount/100.0);
+                  double gst=after*.05,total=after+gst;
+                  if(subtotalText!=null) subtotalText.setText("Subtotal   ₹"+String.format(Locale.US,"%.2f",subtotal));
+                  if(gstText!=null) gstText.setText("GST 5%   ₹"+String.format(Locale.US,"%.2f",gst));
+                  if(totalText!=null) totalText.setText("TOTAL   ₹"+String.format(Locale.US,"%.2f",total));
+                  if(itemCountText!=null) itemCountText.setText(itemCount+" ITEMS");
+              }
+
+              Button button(String s,int color){
+                  Button b=new Button(this); b.setText(s);
+                  b.setTextColor(color==NAVY?WHITE:TEXT); b.setTextSize(14);
+                  b.setAllCaps(false); b.setBackground(bg(color,16)); b.setPadding(dp(8),0,dp(8),0);
+                  return b;
+              }
+
+              Button smallButton(String s){
+                  Button b=button(s,Color.rgb(241,245,249)); b.setTextSize(18); return b;
+              }
+
+              View space(int h){
+                  Space s=new Space(this);
+                  s.setLayoutParams(new LinearLayout.LayoutParams(1,dp(h))); return s;
+              }
+          }
+          EOF
+
+      - name: Build APK
+        shell: bash
+        run: |
+          gradle assembleDebug --stacktrace
+          echo "APK files:"
+          find app/build -type f -name "*.apk" -print
+          test -f app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sarath-Malu-Super-Market-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

@@ -1,0 +1,304 @@
+name: Build Offline Dictionary APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/example/offlinedictionary
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "OfflineDictionary"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.6.1' apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.example.offlinedictionary'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.example.offlinedictionary'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources>
+              <string name="app_name">English Tamil Dictionary</string>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme"
+                  parent="android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#6750A4</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="@string/app_name"
+                  android:allowBackup="false">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+
+                  </activity>
+              </application>
+
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/example/offlinedictionary/MainActivity.java <<'EOF'
+          package com.example.offlinedictionary;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.view.Gravity;
+          import android.widget.*;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+
+              EditText search;
+              TextView result;
+
+              HashMap<String,String> dictionary = new HashMap<>();
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  loadDictionary();
+
+                  LinearLayout main = new LinearLayout(this);
+                  main.setOrientation(LinearLayout.VERTICAL);
+                  main.setPadding(28, 40, 28, 28);
+
+                  TextView title = new TextView(this);
+                  title.setText("English ↔ Tamil");
+                  title.setTextSize(28);
+                  title.setTextColor(Color.rgb(55,40,100));
+                  title.setGravity(Gravity.CENTER);
+                  title.setPadding(0,0,0,25);
+
+                  main.addView(title);
+
+                  search = new EditText(this);
+                  search.setHint("Search English word...");
+                  search.setSingleLine(true);
+
+                  main.addView(search);
+
+                  Button button = new Button(this);
+                  button.setText("SEARCH");
+
+                  main.addView(button);
+
+                  result = new TextView(this);
+                  result.setTextSize(21);
+                  result.setPadding(10,35,10,10);
+
+                  main.addView(
+                      result,
+                      new LinearLayout.LayoutParams(
+                          -1, 0, 1
+                      )
+                  );
+
+                  TextView offline = new TextView(this);
+                  offline.setText("● 100% Offline");
+                  offline.setTextColor(Color.rgb(40,150,80));
+
+                  main.addView(offline);
+
+                  setContentView(main);
+
+                  button.setOnClickListener(v -> searchWord());
+              }
+
+              void searchWord() {
+
+                  String word = search
+                      .getText()
+                      .toString()
+                      .trim()
+                      .toLowerCase(Locale.ROOT);
+
+                  if(word.length() == 0) {
+                      result.setText("Type a word to search.");
+                      return;
+                  }
+
+                  String tamil = dictionary.get(word);
+
+                  if(tamil == null) {
+                      result.setText(
+                          "No translation found.\n\nTry:\nhello\nwater\nfood\nhouse\nfriend\nbook\nschool\nhappy\nbeautiful"
+                      );
+                  } else {
+                      result.setText(
+                          "English\n" +
+                          word +
+                          "\n\nTamil\n" +
+                          tamil
+                      );
+                  }
+              }
+
+              void loadDictionary() {
+
+                  String[][] words = {
+
+                      {"hello","வணக்கம்"},
+                      {"water","தண்ணீர்"},
+                      {"food","உணவு"},
+                      {"house","வீடு"},
+                      {"home","வீடு"},
+                      {"friend","நண்பர்"},
+                      {"book","புத்தகம்"},
+                      {"school","பள்ளி"},
+                      {"teacher","ஆசிரியர்"},
+                      {"student","மாணவர்"},
+                      {"work","வேலை"},
+                      {"office","அலுவலகம்"},
+                      {"happy","மகிழ்ச்சியான"},
+                      {"sad","சோகமான"},
+                      {"beautiful","அழகான"},
+                      {"good","நல்ல"},
+                      {"bad","மோசமான"},
+                      {"big","பெரிய"},
+                      {"small","சிறிய"},
+                      {"love","அன்பு / காதல்"},
+                      {"family","குடும்பம்"},
+                      {"mother","அம்மா"},
+                      {"father","அப்பா"},
+                      {"brother","சகோதரன்"},
+                      {"sister","சகோதரி"},
+                      {"child","குழந்தை"},
+                      {"money","பணம்"},
+                      {"time","நேரம்"},
+                      {"day","நாள்"},
+                      {"night","இரவு"},
+                      {"morning","காலை"},
+                      {"evening","மாலை"},
+                      {"eat","சாப்பிடு"},
+                      {"drink","குடி"},
+                      {"come","வா"},
+                      {"go","செல்"},
+                      {"sleep","தூங்கு"},
+                      {"read","படி"},
+                      {"write","எழுது"},
+                      {"speak","பேசு"},
+                      {"learn","கற்றுக்கொள்"},
+                      {"help","உதவி"},
+                      {"thank you","நன்றி"},
+                      {"please","தயவு செய்து"},
+                      {"yes","ஆம்"},
+                      {"no","இல்லை"},
+                      {"sorry","மன்னிக்கவும்"},
+                      {"car","கார்"},
+                      {"bus","பேருந்து"},
+                      {"road","சாலை"},
+                      {"city","நகரம்"},
+                      {"country","நாடு"},
+                      {"world","உலகம்"},
+                      {"sun","சூரியன்"},
+                      {"moon","நிலா"},
+                      {"rain","மழை"},
+                      {"tree","மரம்"},
+                      {"flower","மலர்"},
+                      {"computer","கணினி"},
+                      {"phone","தொலைபேசி"},
+                      {"internet","இணையம்"},
+                      {"language","மொழி"},
+                      {"word","சொல்"},
+                      {"meaning","அர்த்தம்"}
+                  };
+
+                  for(String[] item : words) {
+                      dictionary.put(item[0], item[1]);
+                  }
+              }
+          }
+          EOF
+
+      - name: Build APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Offline-English-Tamil-Dictionary
+          path: app/build/outputs/apk/debug/app-debug.apk

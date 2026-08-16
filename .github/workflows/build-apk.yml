@@ -1,9 +1,10 @@
-name: Build Offline Dictionary APK
+name: Build Supermarket Billing APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
@@ -13,20 +14,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      - name: Create Android project
+      - name: Create Android Project
         run: |
-          mkdir -p app/src/main/java/com/example/offlinedictionary
+          mkdir -p app/src/main/java/com/example/supermarketbilling
           mkdir -p app/src/main/res/values
 
           cat > settings.gradle <<'EOF'
@@ -46,7 +47,7 @@ jobs:
               }
           }
 
-          rootProject.name = "OfflineDictionary"
+          rootProject.name = "SupermarketBilling"
           include(":app")
           EOF
 
@@ -57,8 +58,8 @@ jobs:
           EOF
 
           cat > gradle.properties <<'EOF'
-          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
+          android.nonTransitiveRClass=true
           EOF
 
           cat > app/build.gradle <<'EOF'
@@ -67,11 +68,11 @@ jobs:
           }
 
           android {
-              namespace 'com.example.offlinedictionary'
+              namespace 'com.example.supermarketbilling'
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.example.offlinedictionary'
+                  applicationId 'com.example.supermarketbilling'
                   minSdk 23
                   targetSdk 35
                   versionCode 1
@@ -82,16 +83,16 @@ jobs:
 
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <resources>
-              <string name="app_name">English Tamil Dictionary</string>
+              <string name="app_name">Supermarket Billing</string>
           </resources>
           EOF
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-              <style name="AppTheme"
-                  parent="android:style/Theme.Material.Light.NoActionBar">
+              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#6750A4</item>
+                  <item name="android:colorAccent">#1565C0</item>
+                  <item name="android:navigationBarColor">#000000</item>
               </style>
           </resources>
           EOF
@@ -102,203 +103,289 @@ jobs:
               <application
                   android:theme="@style/AppTheme"
                   android:label="@string/app_name"
-                  android:allowBackup="false">
+                  android:allowBackup="true"
+                  android:supportsRtl="true">
 
                   <activity
                       android:name=".MainActivity"
+                      android:screenOrientation="portrait"
                       android:exported="true">
 
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
 
                   </activity>
+
               </application>
 
           </manifest>
           EOF
 
-          cat > app/src/main/java/com/example/offlinedictionary/MainActivity.java <<'EOF'
-          package com.example.offlinedictionary;
+          cat > app/src/main/java/com/example/supermarketbilling/MainActivity.java <<'EOF'
+          package com.example.supermarketbilling;
 
           import android.app.Activity;
           import android.os.Bundle;
           import android.graphics.Color;
           import android.view.Gravity;
+          import android.view.View;
           import android.widget.*;
-          import java.util.*;
+          import java.util.ArrayList;
+          import java.util.Locale;
 
           public class MainActivity extends Activity {
 
-              EditText search;
-              TextView result;
+              LinearLayout cartLayout;
+              TextView subtotalText, gstText, totalText;
+              EditText discountInput;
 
-              HashMap<String,String> dictionary = new HashMap<>();
+              ArrayList<String> names = new ArrayList<>();
+              ArrayList<Double> prices = new ArrayList<>();
+              ArrayList<Integer> quantities = new ArrayList<>();
+
+              String[] products = {
+                      "Rice 5kg",
+                      "Milk 1L",
+                      "Bread",
+                      "Sugar 1kg",
+                      "Cooking Oil 1L",
+                      "Biscuits"
+              };
+
+              double[] productPrices = {
+                      320, 55, 45, 52, 145, 30
+              };
 
               @Override
-              public void onCreate(Bundle savedInstanceState) {
+              protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  loadDictionary();
-
-                  LinearLayout main = new LinearLayout(this);
-                  main.setOrientation(LinearLayout.VERTICAL);
-                  main.setPadding(28, 40, 28, 28);
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(20, 20, 20, 20);
+                  root.setBackgroundColor(Color.WHITE);
 
                   TextView title = new TextView(this);
-                  title.setText("English ↔ Tamil");
-                  title.setTextSize(28);
-                  title.setTextColor(Color.rgb(55,40,100));
+                  title.setText("SUPERMARKET BILLING");
+                  title.setTextSize(24);
+                  title.setTextColor(Color.rgb(20, 70, 130));
                   title.setGravity(Gravity.CENTER);
-                  title.setPadding(0,0,0,25);
-
-                  main.addView(title);
-
-                  search = new EditText(this);
-                  search.setHint("Search English word...");
-                  search.setSingleLine(true);
-
-                  main.addView(search);
-
-                  Button button = new Button(this);
-                  button.setText("SEARCH");
-
-                  main.addView(button);
-
-                  result = new TextView(this);
-                  result.setTextSize(21);
-                  result.setPadding(10,35,10,10);
-
-                  main.addView(
-                      result,
-                      new LinearLayout.LayoutParams(
-                          -1, 0, 1
-                      )
-                  );
+                  title.setPadding(0, 10, 0, 20);
+                  root.addView(title);
 
                   TextView offline = new TextView(this);
-                  offline.setText("● 100% Offline");
-                  offline.setTextColor(Color.rgb(40,150,80));
+                  offline.setText("100% OFFLINE POS");
+                  offline.setGravity(Gravity.CENTER);
+                  offline.setTextColor(Color.DKGRAY);
+                  root.addView(offline);
 
-                  main.addView(offline);
+                  LinearLayout productGrid = new LinearLayout(this);
+                  productGrid.setOrientation(LinearLayout.VERTICAL);
 
-                  setContentView(main);
+                  for (int i = 0; i < products.length; i += 2) {
+                      LinearLayout row = new LinearLayout(this);
+                      row.setOrientation(LinearLayout.HORIZONTAL);
 
-                  button.setOnClickListener(v -> searchWord());
+                      addProductButton(row, i);
+                      if (i + 1 < products.length) {
+                          addProductButton(row, i + 1);
+                      }
+
+                      productGrid.addView(row);
+                  }
+
+                  root.addView(productGrid);
+
+                  TextView cartTitle = new TextView(this);
+                  cartTitle.setText("CART");
+                  cartTitle.setTextSize(20);
+                  cartTitle.setTextColor(Color.BLACK);
+                  cartTitle.setPadding(0, 20, 0, 10);
+                  root.addView(cartTitle);
+
+                  ScrollView scroll = new ScrollView(this);
+                  cartLayout = new LinearLayout(this);
+                  cartLayout.setOrientation(LinearLayout.VERTICAL);
+                  scroll.addView(cartLayout);
+
+                  root.addView(scroll,
+                          new LinearLayout.LayoutParams(
+                                  -1, 0, 1));
+
+                  discountInput = new EditText(this);
+                  discountInput.setHint("Discount %");
+                  discountInput.setInputType(2);
+                  root.addView(discountInput);
+
+                  subtotalText = createTotalText();
+                  gstText = createTotalText();
+                  totalText = createTotalText();
+
+                  root.addView(subtotalText);
+                  root.addView(gstText);
+                  root.addView(totalText);
+
+                  Button clear = new Button(this);
+                  clear.setText("CLEAR BILL");
+                  clear.setOnClickListener(v -> clearCart());
+                  root.addView(clear);
+
+                  discountInput.setOnFocusChangeListener((v, hasFocus) -> {
+                      if (!hasFocus) updateTotals();
+                  });
+
+                  setContentView(root);
+                  updateTotals();
               }
 
-              void searchWord() {
-
-                  String word = search
-                      .getText()
-                      .toString()
-                      .trim()
-                      .toLowerCase(Locale.ROOT);
-
-                  if(word.length() == 0) {
-                      result.setText("Type a word to search.");
-                      return;
-                  }
-
-                  String tamil = dictionary.get(word);
-
-                  if(tamil == null) {
-                      result.setText(
-                          "No translation found.\n\nTry:\nhello\nwater\nfood\nhouse\nfriend\nbook\nschool\nhappy\nbeautiful"
-                      );
-                  } else {
-                      result.setText(
-                          "English\n" +
-                          word +
-                          "\n\nTamil\n" +
-                          tamil
-                      );
-                  }
+              TextView createTotalText() {
+                  TextView t = new TextView(this);
+                  t.setTextSize(17);
+                  t.setTextColor(Color.DKGRAY);
+                  t.setPadding(0, 5, 0, 5);
+                  return t;
               }
 
-              void loadDictionary() {
+              void addProductButton(LinearLayout row, int index) {
+                  Button b = new Button(this);
+                  b.setText(products[index] + "\n₹" +
+                          String.format(Locale.US, "%.0f", productPrices[index]));
 
-                  String[][] words = {
+                  b.setOnClickListener(v -> addProduct(index));
 
-                      {"hello","வணக்கம்"},
-                      {"water","தண்ணீர்"},
-                      {"food","உணவு"},
-                      {"house","வீடு"},
-                      {"home","வீடு"},
-                      {"friend","நண்பர்"},
-                      {"book","புத்தகம்"},
-                      {"school","பள்ளி"},
-                      {"teacher","ஆசிரியர்"},
-                      {"student","மாணவர்"},
-                      {"work","வேலை"},
-                      {"office","அலுவலகம்"},
-                      {"happy","மகிழ்ச்சியான"},
-                      {"sad","சோகமான"},
-                      {"beautiful","அழகான"},
-                      {"good","நல்ல"},
-                      {"bad","மோசமான"},
-                      {"big","பெரிய"},
-                      {"small","சிறிய"},
-                      {"love","அன்பு / காதல்"},
-                      {"family","குடும்பம்"},
-                      {"mother","அம்மா"},
-                      {"father","அப்பா"},
-                      {"brother","சகோதரன்"},
-                      {"sister","சகோதரி"},
-                      {"child","குழந்தை"},
-                      {"money","பணம்"},
-                      {"time","நேரம்"},
-                      {"day","நாள்"},
-                      {"night","இரவு"},
-                      {"morning","காலை"},
-                      {"evening","மாலை"},
-                      {"eat","சாப்பிடு"},
-                      {"drink","குடி"},
-                      {"come","வா"},
-                      {"go","செல்"},
-                      {"sleep","தூங்கு"},
-                      {"read","படி"},
-                      {"write","எழுது"},
-                      {"speak","பேசு"},
-                      {"learn","கற்றுக்கொள்"},
-                      {"help","உதவி"},
-                      {"thank you","நன்றி"},
-                      {"please","தயவு செய்து"},
-                      {"yes","ஆம்"},
-                      {"no","இல்லை"},
-                      {"sorry","மன்னிக்கவும்"},
-                      {"car","கார்"},
-                      {"bus","பேருந்து"},
-                      {"road","சாலை"},
-                      {"city","நகரம்"},
-                      {"country","நாடு"},
-                      {"world","உலகம்"},
-                      {"sun","சூரியன்"},
-                      {"moon","நிலா"},
-                      {"rain","மழை"},
-                      {"tree","மரம்"},
-                      {"flower","மலர்"},
-                      {"computer","கணினி"},
-                      {"phone","தொலைபேசி"},
-                      {"internet","இணையம்"},
-                      {"language","மொழி"},
-                      {"word","சொல்"},
-                      {"meaning","அர்த்தம்"}
-                  };
+                  row.addView(b,
+                          new LinearLayout.LayoutParams(
+                                  0, 90, 1));
 
-                  for(String[] item : words) {
-                      dictionary.put(item[0], item[1]);
+                  row.setPadding(0, 3, 0, 3);
+              }
+
+              void addProduct(int index) {
+                  for (int i = 0; i < names.size(); i++) {
+                      if (names.get(i).equals(products[index])) {
+                          quantities.set(i, quantities.get(i) + 1);
+                          refreshCart();
+                          return;
+                      }
                   }
+
+                  names.add(products[index]);
+                  prices.add(productPrices[index]);
+                  quantities.add(1);
+
+                  refreshCart();
+              }
+
+              void refreshCart() {
+                  cartLayout.removeAllViews();
+
+                  for (int i = 0; i < names.size(); i++) {
+                      final int pos = i;
+
+                      LinearLayout row = new LinearLayout(this);
+                      row.setGravity(Gravity.CENTER_VERTICAL);
+
+                      TextView item = new TextView(this);
+                      item.setText(names.get(i) + "  ₹" +
+                              String.format(Locale.US, "%.0f", prices.get(i)));
+
+                      item.setTextSize(16);
+
+                      Button minus = new Button(this);
+                      minus.setText("-");
+
+                      Button plus = new Button(this);
+                      plus.setText("+");
+
+                      TextView qty = new TextView(this);
+                      qty.setText("  " + quantities.get(i) + "  ");
+                      qty.setTextSize(17);
+
+                      minus.setOnClickListener(v -> {
+                          if (quantities.get(pos) > 1) {
+                              quantities.set(pos, quantities.get(pos) - 1);
+                          } else {
+                              names.remove(pos);
+                              prices.remove(pos);
+                              quantities.remove(pos);
+                          }
+                          refreshCart();
+                      });
+
+                      plus.setOnClickListener(v -> {
+                          quantities.set(pos, quantities.get(pos) + 1);
+                          refreshCart();
+                      });
+
+                      row.addView(item,
+                              new LinearLayout.LayoutParams(0, -2, 1));
+                      row.addView(minus);
+                      row.addView(qty);
+                      row.addView(plus);
+
+                      cartLayout.addView(row);
+                  }
+
+                  updateTotals();
+              }
+
+              void updateTotals() {
+                  double subtotal = 0;
+
+                  for (int i = 0; i < names.size(); i++) {
+                      subtotal += prices.get(i) * quantities.get(i);
+                  }
+
+                  double discount = 0;
+
+                  try {
+                      discount = Double.parseDouble(
+                              discountInput.getText().toString());
+                  } catch (Exception ignored) {}
+
+                  double discountAmount =
+                          subtotal * discount / 100.0;
+
+                  double taxable =
+                          subtotal - discountAmount;
+
+                  double gst = taxable * 0.05;
+
+                  double total = taxable + gst;
+
+                  subtotalText.setText(
+                          "Subtotal: ₹" +
+                          String.format(Locale.US, "%.2f", subtotal));
+
+                  gstText.setText(
+                          "GST 5%: ₹" +
+                          String.format(Locale.US, "%.2f", gst));
+
+                  totalText.setText(
+                          "TOTAL: ₹" +
+                          String.format(Locale.US, "%.2f", total));
+              }
+
+              void clearCart() {
+                  names.clear();
+                  prices.clear();
+                  quantities.clear();
+
+                  discountInput.setText("");
+                  cartLayout.removeAllViews();
+
+                  updateTotals();
               }
           }
           EOF
 
       - name: Build APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Offline-English-Tamil-Dictionary
+          name: Supermarket-Billing-V1
           path: app/build/outputs/apk/debug/app-debug.apk

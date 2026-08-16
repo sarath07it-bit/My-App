@@ -1,4 +1,4 @@
-name: Build Supermarket Billing APK
+name: Build Sarath & Malu Super Market V2
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -27,7 +27,7 @@ jobs:
 
       - name: Create Android Project
         run: |
-          mkdir -p app/src/main/java/com/example/supermarketbilling
+          mkdir -p app/src/main/java/com/example/sarathmalusupermarket
           mkdir -p app/src/main/res/values
 
           cat > settings.gradle <<'EOF'
@@ -47,7 +47,7 @@ jobs:
               }
           }
 
-          rootProject.name = "SupermarketBilling"
+          rootProject.name = "SarathMaluSuperMarket"
           include(":app")
           EOF
 
@@ -68,22 +68,22 @@ jobs:
           }
 
           android {
-              namespace 'com.example.supermarketbilling'
+              namespace 'com.example.sarathmalusupermarket'
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.example.supermarketbilling'
+                  applicationId 'com.example.sarathmalusupermarket'
                   minSdk 23
                   targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 2
+                  versionName '2.0'
               }
           }
           EOF
 
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <resources>
-              <string name="app_name">Supermarket Billing</string>
+              <string name="app_name">Sarath &amp; Malu Super Market</string>
           </resources>
           EOF
 
@@ -91,8 +91,10 @@ jobs:
           <resources>
               <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#1565C0</item>
-                  <item name="android:navigationBarColor">#000000</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#0B3B91</item>
+                  <item name="android:navigationBarColor">#0B1220</item>
+                  <item name="android:colorAccent">#1769E0</item>
               </style>
           </resources>
           EOF
@@ -123,14 +125,17 @@ jobs:
           </manifest>
           EOF
 
-          cat > app/src/main/java/com/example/supermarketbilling/MainActivity.java <<'EOF'
-          package com.example.supermarketbilling;
+          cat > app/src/main/java/com/example/sarathmalusupermarket/MainActivity.java <<'EOF'
+          package com.example.sarathmalusupermarket;
 
           import android.app.Activity;
           import android.os.Bundle;
           import android.graphics.Color;
+          import android.graphics.drawable.GradientDrawable;
           import android.view.Gravity;
           import android.view.View;
+          import android.view.inputmethod.InputMethodManager;
+          import android.content.Context;
           import android.widget.*;
           import java.util.ArrayList;
           import java.util.Locale;
@@ -138,254 +143,154 @@ jobs:
           public class MainActivity extends Activity {
 
               LinearLayout cartLayout;
-              TextView subtotalText, gstText, totalText;
+              TextView subtotalText;
+              TextView discountText;
+              TextView gstText;
+              TextView totalText;
+              TextView itemCountText;
               EditText discountInput;
+              EditText searchInput;
 
               ArrayList<String> names = new ArrayList<>();
               ArrayList<Double> prices = new ArrayList<>();
               ArrayList<Integer> quantities = new ArrayList<>();
 
-              String[] products = {
+              String[] productNames = {
                       "Rice 5kg",
                       "Milk 1L",
                       "Bread",
                       "Sugar 1kg",
                       "Cooking Oil 1L",
-                      "Biscuits"
+                      "Biscuits",
+                      "Tea 250g",
+                      "Coffee 100g",
+                      "Salt 1kg",
+                      "Shampoo",
+                      "Toothpaste",
+                      "Detergent 1kg"
               };
 
               double[] productPrices = {
-                      320, 55, 45, 52, 145, 30
+                      320, 55, 45, 52, 145, 30,
+                      120, 210, 20, 180, 85, 110
               };
+
+              String[] productIcons = {
+                      "🍚","🥛","🍞","🍚","🫗","🍪",
+                      "🍵","☕","🧂","🧴","🪥","🧼"
+              };
+
+              int blue = Color.rgb(16, 91, 210);
+              int darkBlue = Color.rgb(7, 54, 135);
+              int lightBlue = Color.rgb(239, 246, 255);
+              int textDark = Color.rgb(25, 30, 38);
+              int textGray = Color.rgb(105, 112, 122);
+              int border = Color.rgb(225, 229, 235);
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  LinearLayout root = new LinearLayout(this);
-                  root.setOrientation(LinearLayout.VERTICAL);
-                  root.setPadding(20, 20, 20, 20);
-                  root.setBackgroundColor(Color.WHITE);
-
-                  TextView title = new TextView(this);
-                  title.setText("SUPERMARKET BILLING");
-                  title.setTextSize(24);
-                  title.setTextColor(Color.rgb(20, 70, 130));
-                  title.setGravity(Gravity.CENTER);
-                  title.setPadding(0, 10, 0, 20);
-                  root.addView(title);
-
-                  TextView offline = new TextView(this);
-                  offline.setText("100% OFFLINE POS");
-                  offline.setGravity(Gravity.CENTER);
-                  offline.setTextColor(Color.DKGRAY);
-                  root.addView(offline);
-
-                  LinearLayout productGrid = new LinearLayout(this);
-                  productGrid.setOrientation(LinearLayout.VERTICAL);
-
-                  for (int i = 0; i < products.length; i += 2) {
-                      LinearLayout row = new LinearLayout(this);
-                      row.setOrientation(LinearLayout.HORIZONTAL);
-
-                      addProductButton(row, i);
-                      if (i + 1 < products.length) {
-                          addProductButton(row, i + 1);
-                      }
-
-                      productGrid.addView(row);
-                  }
-
-                  root.addView(productGrid);
-
-                  TextView cartTitle = new TextView(this);
-                  cartTitle.setText("CART");
-                  cartTitle.setTextSize(20);
-                  cartTitle.setTextColor(Color.BLACK);
-                  cartTitle.setPadding(0, 20, 0, 10);
-                  root.addView(cartTitle);
-
-                  ScrollView scroll = new ScrollView(this);
-                  cartLayout = new LinearLayout(this);
-                  cartLayout.setOrientation(LinearLayout.VERTICAL);
-                  scroll.addView(cartLayout);
-
-                  root.addView(scroll,
-                          new LinearLayout.LayoutParams(
-                                  -1, 0, 1));
-
-                  discountInput = new EditText(this);
-                  discountInput.setHint("Discount %");
-                  discountInput.setInputType(2);
-                  root.addView(discountInput);
-
-                  subtotalText = createTotalText();
-                  gstText = createTotalText();
-                  totalText = createTotalText();
-
-                  root.addView(subtotalText);
-                  root.addView(gstText);
-                  root.addView(totalText);
-
-                  Button clear = new Button(this);
-                  clear.setText("CLEAR BILL");
-                  clear.setOnClickListener(v -> clearCart());
-                  root.addView(clear);
-
-                  discountInput.setOnFocusChangeListener((v, hasFocus) -> {
-                      if (!hasFocus) updateTotals();
-                  });
-
-                  setContentView(root);
-                  updateTotals();
+                  buildScreen();
               }
 
-              TextView createTotalText() {
+              GradientDrawable bg(int color, float radius) {
+                  GradientDrawable g = new GradientDrawable();
+                  g.setColor(color);
+                  g.setCornerRadius(radius);
+                  return g;
+              }
+
+              GradientDrawable strokeBg(int fill, int stroke, float radius) {
+                  GradientDrawable g = bg(fill, radius);
+                  g.setStroke(2, stroke);
+                  return g;
+              }
+
+              TextView text(String value, float size, int color) {
                   TextView t = new TextView(this);
-                  t.setTextSize(17);
-                  t.setTextColor(Color.DKGRAY);
-                  t.setPadding(0, 5, 0, 5);
+                  t.setText(value);
+                  t.setTextSize(size);
+                  t.setTextColor(color);
                   return t;
               }
 
-              void addProductButton(LinearLayout row, int index) {
-                  Button b = new Button(this);
-                  b.setText(products[index] + "\n₹" +
-                          String.format(Locale.US, "%.0f", productPrices[index]));
-
-                  b.setOnClickListener(v -> addProduct(index));
-
-                  row.addView(b,
-                          new LinearLayout.LayoutParams(
-                                  0, 90, 1));
-
-                  row.setPadding(0, 3, 0, 3);
+              TextView textBold(String value, float size, int color) {
+                  TextView t = text(value, size, color);
+                  t.setTypeface(null, 1);
+                  return t;
               }
 
-              void addProduct(int index) {
-                  for (int i = 0; i < names.size(); i++) {
-                      if (names.get(i).equals(products[index])) {
-                          quantities.set(i, quantities.get(i) + 1);
-                          refreshCart();
-                          return;
-                      }
-                  }
-
-                  names.add(products[index]);
-                  prices.add(productPrices[index]);
-                  quantities.add(1);
-
-                  refreshCart();
+              int dp(float v) {
+                  return (int)(v * getResources().getDisplayMetrics().density + 0.5f);
               }
 
-              void refreshCart() {
-                  cartLayout.removeAllViews();
-
-                  for (int i = 0; i < names.size(); i++) {
-                      final int pos = i;
-
-                      LinearLayout row = new LinearLayout(this);
-                      row.setGravity(Gravity.CENTER_VERTICAL);
-
-                      TextView item = new TextView(this);
-                      item.setText(names.get(i) + "  ₹" +
-                              String.format(Locale.US, "%.0f", prices.get(i)));
-
-                      item.setTextSize(16);
-
-                      Button minus = new Button(this);
-                      minus.setText("-");
-
-                      Button plus = new Button(this);
-                      plus.setText("+");
-
-                      TextView qty = new TextView(this);
-                      qty.setText("  " + quantities.get(i) + "  ");
-                      qty.setTextSize(17);
-
-                      minus.setOnClickListener(v -> {
-                          if (quantities.get(pos) > 1) {
-                              quantities.set(pos, quantities.get(pos) - 1);
-                          } else {
-                              names.remove(pos);
-                              prices.remove(pos);
-                              quantities.remove(pos);
-                          }
-                          refreshCart();
-                      });
-
-                      plus.setOnClickListener(v -> {
-                          quantities.set(pos, quantities.get(pos) + 1);
-                          refreshCart();
-                      });
-
-                      row.addView(item,
-                              new LinearLayout.LayoutParams(0, -2, 1));
-                      row.addView(minus);
-                      row.addView(qty);
-                      row.addView(plus);
-
-                      cartLayout.addView(row);
-                  }
-
-                  updateTotals();
+              LinearLayout.LayoutParams lp(int w, int h) {
+                  return new LinearLayout.LayoutParams(
+                          w == -2 ? -2 : (w == -1 ? -1 : dp(w)),
+                          h == -2 ? -2 : (h == -1 ? -1 : dp(h))
+                  );
               }
 
-              void updateTotals() {
-                  double subtotal = 0;
-
-                  for (int i = 0; i < names.size(); i++) {
-                      subtotal += prices.get(i) * quantities.get(i);
-                  }
-
-                  double discount = 0;
-
-                  try {
-                      discount = Double.parseDouble(
-                              discountInput.getText().toString());
-                  } catch (Exception ignored) {}
-
-                  double discountAmount =
-                          subtotal * discount / 100.0;
-
-                  double taxable =
-                          subtotal - discountAmount;
-
-                  double gst = taxable * 0.05;
-
-                  double total = taxable + gst;
-
-                  subtotalText.setText(
-                          "Subtotal: ₹" +
-                          String.format(Locale.US, "%.2f", subtotal));
-
-                  gstText.setText(
-                          "GST 5%: ₹" +
-                          String.format(Locale.US, "%.2f", gst));
-
-                  totalText.setText(
-                          "TOTAL: ₹" +
-                          String.format(Locale.US, "%.2f", total));
+              LinearLayout.LayoutParams weighted(int w, int h, float weight) {
+                  return new LinearLayout.LayoutParams(
+                          w == 0 ? 0 : dp(w),
+                          h == -1 ? -1 : dp(h),
+                          weight
+                  );
               }
 
-              void clearCart() {
-                  names.clear();
-                  prices.clear();
-                  quantities.clear();
+              void buildScreen() {
 
-                  discountInput.setText("");
-                  cartLayout.removeAllViews();
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setBackgroundColor(Color.rgb(247, 249, 252));
 
-                  updateTotals();
+                  root.addView(createHeader());
+
+                  ScrollView mainScroll = new ScrollView(this);
+                  LinearLayout content = new LinearLayout(this);
+                  content.setOrientation(LinearLayout.VERTICAL);
+                  content.setPadding(dp(16), dp(14), dp(16), dp(25));
+
+                  content.addView(createSearchBar());
+                  content.addView(createCategories());
+                  content.addView(createSectionTitle("PRODUCTS"));
+                  content.addView(createProducts());
+                  content.addView(createCart());
+                  content.addView(createSummaryCards());
+                  content.addView(createBottomActions());
+
+                  mainScroll.addView(content);
+                  root.addView(mainScroll,
+                          new LinearLayout.LayoutParams(-1, 0, 1));
+
+                  root.addView(createBottomNavigation());
+
+                  setContentView(root);
               }
-          }
-          EOF
 
-      - name: Build APK
-        run: gradle assembleDebug --stacktrace
+              View createHeader() {
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Supermarket-Billing-V1
-          path: app/build/outputs/apk/debug/app-debug.apk
+                  LinearLayout header = new LinearLayout(this);
+                  header.setOrientation(LinearLayout.VERTICAL);
+                  header.setPadding(dp(18), dp(16), dp(18), dp(15));
+
+                  GradientDrawable gradient = new GradientDrawable(
+                          GradientDrawable.Orientation.TL_BR,
+                          new int[]{darkBlue, blue});
+                  header.setBackground(gradient);
+
+                  LinearLayout top = new LinearLayout(this);
+                  top.setGravity(Gravity.CENTER_VERTICAL);
+
+                  TextView icon = text("🛒", 28, Color.WHITE);
+                  icon.setGravity(Gravity.CENTER);
+                  icon.setBackground(bg(Color.rgb(38,112,225), dp(14)));
+
+                  LinearLayout.LayoutParams iconParams =
+                          new LinearLayout.LayoutParams(dp(55), dp(55));
+                  top.addView(icon, iconParams);
+
+                  LinearLayout titleBox = new LinearLayout(this);
+                  titleBox.setOrientation(LinearLayout.VERTICAL

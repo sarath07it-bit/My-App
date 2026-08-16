@@ -294,3 +294,8 @@ jobs:
 
                   LinearLayout titleBox = new LinearLayout(this);
                   titleBox.setOrientation(LinearLayout.VERTICAL
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Supermarket-Billing-V1
+          path: app/build/outputs/apk/debug/app-debug.apk
